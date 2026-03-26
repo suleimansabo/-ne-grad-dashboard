@@ -64,11 +64,106 @@ export default function LocalRetention() {
             '24m': r.retention24m,
         }));
 
+    // ── Headline insight: weighted avg local vs non-local 12m retention ──
+    const yearRows = retData.filter((r) => r.year === year);
+    const totalLocal = yearRows.reduce((s, r) => s + r.localOriginHires, 0);
+    const totalNonLocal = yearRows.reduce((s, r) => s + r.nonLocalOriginHires, 0);
+    const wtdLocalRet = totalLocal > 0
+        ? yearRows.reduce((s, r) => s + r.localRetention12m * r.localOriginHires, 0) / totalLocal
+        : 0;
+    const wtdNonLocalRet = totalNonLocal > 0
+        ? yearRows.reduce((s, r) => s + r.nonLocalRetention12m * r.nonLocalOriginHires, 0) / totalNonLocal
+        : 0;
+    const retGapPp = Math.round((wtdLocalRet - wtdNonLocalRet) * 10) / 10;
+    const bestLocalUni = [...yearRows].sort((a, b) => b.localRetention12m - a.localRetention12m)[0];
+    const worstNonLocalUni = [...yearRows].sort((a, b) => a.nonLocalRetention12m - b.nonLocalRetention12m)[0];
+
     return (
         <div className="page animate-in">
             <div className="page-title">Local Retention & Stickiness</div>
             <div className="page-subtitle">
                 Analysing whether North East hires are staying in the region · {year}
+            </div>
+
+            {/* ── Headline insight banner ── */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto auto',
+                gap: 12,
+                alignItems: 'stretch',
+                marginBottom: 24,
+                padding: '18px 24px',
+                background: 'linear-gradient(135deg, rgba(161,0,255,0.10) 0%, rgba(0,200,255,0.07) 100%)',
+                border: '1px solid rgba(161,0,255,0.25)',
+                borderRadius: 12,
+            }}>
+                {/* Main stat */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                    <div style={{
+                        fontSize: 52,
+                        fontWeight: 900,
+                        color: retGapPp >= 0 ? 'var(--green)' : 'var(--red)',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                    }}>
+                        +{retGapPp}pp
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3, marginBottom: 4 }}>
+                            Local hires are retained <span style={{ color: 'var(--green)' }}>{retGapPp}pp more</span> than non-local hires at 12 months
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                            Local-origin avg: <strong style={{ color: 'var(--text)' }}>{wtdLocalRet.toFixed(1)}%</strong>
+                            {' '}·{' '}
+                            Non-local avg: <strong style={{ color: 'var(--red)' }}>{wtdNonLocalRet.toFixed(1)}%</strong>
+                            {' '}· weighted across {totalLocal + totalNonLocal} hires
+                        </div>
+                    </div>
+                </div>
+
+                {/* Supporting stat 1 */}
+                {bestLocalUni && (
+                    <div style={{
+                        padding: '12px 16px',
+                        background: 'rgba(34,197,94,0.08)',
+                        border: '1px solid rgba(34,197,94,0.2)',
+                        borderRadius: 8,
+                        minWidth: 160,
+                        textAlign: 'center',
+                    }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                            Best Local Retention
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)' }}>
+                            {bestLocalUni.localRetention12m}%
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {bestLocalUni.university.split(' ')[0]} local hires
+                        </div>
+                    </div>
+                )}
+
+                {/* Supporting stat 2 */}
+                {worstNonLocalUni && (
+                    <div style={{
+                        padding: '12px 16px',
+                        background: 'rgba(255,107,107,0.08)',
+                        border: '1px solid rgba(255,107,107,0.2)',
+                        borderRadius: 8,
+                        minWidth: 160,
+                        textAlign: 'center',
+                    }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                            Highest Non-Local Leakage
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--red)' }}>
+                            {worstNonLocalUni.nonLocalRetention12m}%
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {worstNonLocalUni.university.split(' ')[0]} non-local hires
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* LRI scores */}

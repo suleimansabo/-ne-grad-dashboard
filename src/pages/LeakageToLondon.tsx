@@ -59,13 +59,13 @@ export default function LeakageToLondon() {
             <div className="grid-4 mb-24">
                 <KpiCard
                     id="kpi-feeder-index"
-                    label="Feeder Index"
+                    label="Feeder Index (London Leakage Rate)"
                     value={`${feederIndex}%`}
                     trend={feederStatus === 'positive' ? 'flat' : 'down'}
                     change={feederIndex > 15 ? '+3pp vs prev year' : 'Stable'}
-                    basis="% leaving for London within 24m"
+                    basis="of NE hires transferred to London within 24 months"
                     status={feederStatus}
-                    tooltip="% of Newcastle hires that ended up in London within 24 months of joining"
+                    tooltip="Feeder Index = % of Newcastle-based hires who ended up in a London office within 24 months of joining. A high number means Newcastle is acting as a training ground rather than a long-term talent base."
                 />
                 <KpiCard
                     id="kpi-ne-still-12m"
