@@ -2,7 +2,7 @@
 // COMPONENT: Sidebar Navigation
 // ============================================================
 
-import { LayoutDashboard, Building2, TrendingDown, Users, ArrowRightLeft, Megaphone, AlertTriangle, GraduationCap, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Building2, TrendingDown, Users, ArrowRightLeft, Megaphone, AlertTriangle, ChevronRight } from 'lucide-react';
 
 export type PageId =
     | 'executive'
@@ -11,8 +11,7 @@ export type PageId =
     | 'local-retention'
     | 'leakage-london'
     | 'campaign-effectiveness'
-    | 'risk-insights'
-    | 'university-scorecard';
+    | 'risk-insights';
 
 interface NavItem {
     id: PageId;
@@ -29,7 +28,6 @@ const NAV_ITEMS: NavItem[] = [
     { id: 'leakage-london', label: 'Leakage to London', icon: <ArrowRightLeft size={15} />, section: 'Analytics' },
     { id: 'campaign-effectiveness', label: 'Campaign Effectiveness', icon: <Megaphone size={15} />, section: 'Performance' },
     { id: 'risk-insights', label: 'Risk & Insights', icon: <AlertTriangle size={15} />, section: 'Performance' },
-    { id: 'university-scorecard', label: 'University Scorecard', icon: <GraduationCap size={15} />, section: 'Performance' },
 ];
 
 const SECTIONS = ['Overview', 'Analytics', 'Performance'];

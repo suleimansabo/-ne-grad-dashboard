@@ -1,60 +1,61 @@
 // ============================================================
-// PAGE: University Landscape → North East University Opportunity Map
-// Answers: size of talent pool | quality of talent pool | retention potential
+// PAGE: University Landscape (Unified)
+// TOP:    Cross-university comparison view
+// BOTTOM: Selected university drill-down (replaces Scorecard)
 // ============================================================
 
 import { useState } from 'react';
-import { MultiBarChart, HorizontalBarChart } from '../components/charts/Charts';
+import { MultiBarChart, HorizontalBarChart, MultiLineChart, DonutChart } from '../components/charts/Charts';
 import { UNIVERSITIES } from '../data/universities';
 import { RETENTION_DATA } from '../data/retention';
 import { useFilters } from '../hooks/useFilters';
+import { getLRIByUniversity } from '../utils/metrics';
 
-const UNI_COLORS = ['#a100ff', '#00c8ff', '#22c55e', '#f59e0b', '#ff6b6b'];
+const UNI_COLORS: Record<string, string> = {
+    newcastle: '#a100ff',
+    northumbria: '#00c8ff',
+    durham: '#22c55e',
+    teesside: '#f59e0b',
+    sunderland: '#ff6b6b',
+};
+const UNI_COLORS_ARR = ['#a100ff', '#00c8ff', '#22c55e', '#f59e0b', '#ff6b6b'];
 const SUBJECTS = ['Business & Management', 'Computing', 'Engineering & Technology', 'Mathematical Sciences'];
+const DEGREE_COLORS = ['#a100ff', '#7b00cc', '#4d0099', '#220044'];
 
-// ─── Tooltip component ───────────────────────────────────────
-function Tooltip({ text }: { text: string }) {
+const UNI_PROFILES: Record<string, string> = {
+    newcastle: 'Russell Group · research-intensive · strong STEM and Business pipeline',
+    northumbria: 'Post-92 · large graduate output · high local-origin share · volume pipeline',
+    durham: 'Russell Group · highest academic calibre in region · selective but strong retention',
+    teesside: 'Post-92 · applied focus · strong Computing and Engineering · high local community ties',
+    sunderland: 'Post-92 · underutilised pipeline · high local-origin · growing employability scores',
+};
+
+// ─── Section divider ──────────────────────────────────────────
+function SectionDivider({ label }: { label: string }) {
     return (
-        <span className="tooltip-wrap" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4 }}>
-            <span
-                style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 15,
-                    height: 15,
-                    borderRadius: '50%',
-                    border: '1px solid var(--text-muted)',
-                    color: 'var(--text-muted)',
-                    fontSize: 10,
-                    cursor: 'help',
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    flexShrink: 0,
-                }}
-                title={text}
-            >?</span>
-        </span>
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, margin: '32px 0 20px',
+        }}>
+            <div style={{
+                padding: '6px 14px', background: 'rgba(161,0,255,0.12)',
+                border: '1px solid rgba(161,0,255,0.3)', borderRadius: 6,
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                color: 'var(--accent)', textTransform: 'uppercase',
+            }}>{label}</div>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
     );
-}
-
-// ─── Opportunity tier badge ───────────────────────────────────
-function TierBadge({ lri, retention12m }: { lri: number; retention12m: number }) {
-    const avg = (lri + retention12m) / 2;
-    if (avg >= 80) return <span className="badge green">High Potential</span>;
-    if (avg >= 70) return <span className="badge amber">Medium Potential</span>;
-    return <span className="badge red">Emerging</span>;
 }
 
 export default function UniversityLandscape() {
     const { filters } = useFilters();
     const [activeSubject, setActiveSubject] = useState<string>('all');
+    const [selectedUniId, setSelectedUniId] = useState<string>('northumbria');
 
     const year = filters.year === 'all' ? 2024 : (filters.year as number);
-    // Use previous year for retention cohort (they'd have been hired in prior years)
     const retentionYear = Math.min(year, 2024);
 
-    // Build comparison table data joining universities + retention
+    // ── Cross-university comparison data ──────────────────────
     const tableData = UNIVERSITIES
         .filter((u) => filters.universityId === 'all' || u.id === filters.universityId)
         .map((u, i) => {
@@ -63,31 +64,23 @@ export default function UniversityLandscape() {
                 ?? RETENTION_DATA.filter((r) => r.universityId === u.id).at(-1)!;
             const totalRelevantStudents = yData.subjectVolumes.reduce((s, sv) => s + sv.students, 0);
             const localOriginPct = retention
-                ? Math.round((retention.localOriginHires / retention.totalHires) * 100)
-                : 0;
+                ? Math.round((retention.localOriginHires / retention.totalHires) * 100) : 0;
             const conversion = totalRelevantStudents > 0
-                ? ((yData.graduatesToAccenture / totalRelevantStudents) * 100)
-                : 0;
+                ? ((yData.graduatesToAccenture / totalRelevantStudents) * 100) : 0;
             const lri = retention?.avgLocalRetentionIndex ?? 0;
+            const dc = yData.degreeClassifications;
             return {
-                id: u.id,
-                name: u.name,
-                shortName: u.shortName,
-                color: UNI_COLORS[i],
-                rankingUK: u.rankingUK,
-                progressionRate: yData.progressionRate,
-                employabilityScore: yData.employabilityScore,
+                id: u.id, name: u.name, shortName: u.shortName,
+                color: UNI_COLORS_ARR[i], rankingUK: u.rankingUK,
+                progressionRate: yData.progressionRate, employabilityScore: yData.employabilityScore,
                 graduatesToAccenture: yData.graduatesToAccenture,
-                totalRelevantStudents,
-                subjectVolumes: yData.subjectVolumes,
-                localOriginPct,
-                retention12m: retention?.retention12m ?? 0,
-                lri,
-                conversion,
+                totalRelevantStudents, subjectVolumes: yData.subjectVolumes,
+                localOriginPct, retention12m: retention?.retention12m ?? 0,
+                lri, conversion,
+                degreeFirstClass: dc.firstClass, degreeTwoOne: dc.twoOne,
             };
         });
 
-    // ─── Chart data ─────────────────────────────────────────
     const subjectChartData = SUBJECTS.map((subj) => {
         const row: Record<string, string | number> = { subject: subj.split(' ')[0] };
         tableData.forEach((u) => {
@@ -97,309 +90,150 @@ export default function UniversityLandscape() {
         return row;
     });
 
-    const retentionPotentialData = tableData.map((u) => ({
-        name: u.shortName,
-        '12m Retention': u.retention12m,
-        'Local Origin %': u.localOriginPct,
-        'LRI': u.lri,
-    }));
-
-    const accentureData = tableData
+    const accentureData = [...tableData]
         .sort((a, b) => b.graduatesToAccenture - a.graduatesToAccenture)
         .map((u) => ({ name: u.shortName, Hires: u.graduatesToAccenture }));
 
+    // ── Selected university drill-down data ───────────────────
+    const selUni = UNIVERSITIES.find((u) => u.id === selectedUniId)!;
+    const selColor = UNI_COLORS[selectedUniId] ?? 'var(--accent)';
+    const selRetData = RETENTION_DATA.filter((r) => r.universityId === selectedUniId);
+    const selLRI = getLRIByUniversity('all').find((l) => l.universityId === selectedUniId);
+    const selLatestData = selUni.data[selUni.data.length - 1];
+    const selLatestRet = selRetData[selRetData.length - 1];
+
+    const hireTrendData = selRetData.map((r) => ({
+        year: String(r.year),
+        Hires: r.totalHires,
+        'Retention 12m': r.retention12m,
+    }));
+
+    const dc = selLatestData.degreeClassifications;
+    const degreeDonutData = [
+        { name: '1st Class', value: dc.firstClass, color: DEGREE_COLORS[0] },
+        { name: '2:1', value: dc.twoOne, color: DEGREE_COLORS[1] },
+        { name: '2:2', value: dc.twoTwo, color: DEGREE_COLORS[2] },
+        { name: '3rd / Pass', value: dc.thirdOrPass, color: DEGREE_COLORS[3] },
+    ];
+    const firstAndTwoOne = dc.firstClass + dc.twoOne;
+
     return (
         <div className="page animate-in">
-            {/* ── Header ── */}
-            <div className="page-title">North East University Opportunity Map</div>
-            <div className="page-subtitle">
-                {year} · Size of talent pool · Quality of talent pool · Retention potential
-            </div>
 
-            {/* ── Legend strip ── */}
-            <div
-                style={{
-                    display: 'flex',
-                    gap: 8,
-                    marginBottom: 24,
-                    padding: '10px 16px',
-                    background: 'var(--surface-2)',
-                    borderRadius: 8,
-                    border: '1px solid var(--border)',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                }}
-            >
+            {/* ════════════════════════════════════════════════
+                SECTION 1: CROSS-UNIVERSITY COMPARISON
+            ════════════════════════════════════════════════ */}
+            <SectionDivider label="Cross-University Comparison" />
+
+            {/* Legend strip */}
+            <div style={{
+                display: 'flex', gap: 8, marginBottom: 20,
+                padding: '10px 16px', background: 'var(--surface-2)',
+                borderRadius: 8, border: '1px solid var(--border)',
+                flexWrap: 'wrap', alignItems: 'center',
+            }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginRight: 4 }}>UNIVERSITIES:</span>
                 {tableData.map((u) => (
                     <span key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: u.color, display: 'inline-block' }} />
                         {u.shortName}
-                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>#{u.rankingUK}</span>
+                        <span style={{
+                            fontSize: 10, padding: '1px 5px',
+                            background: 'var(--surface)', border: '1px solid var(--border)',
+                            borderRadius: 4, color: 'var(--text-muted)',
+                        }}>UK #{u.rankingUK}</span>
                     </span>
                 ))}
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    UK ranking shown for context only
+                    UK ranking shown as context only
                 </span>
             </div>
 
-            {/* ── University cards: 3 signals per card ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
-                {tableData.map((u) => (
-                    <div key={u.id} className="kpi-card neutral" style={{ borderTop: `3px solid ${u.color}`, padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                            <div className="kpi-label" style={{ color: u.color, fontSize: 12 }}>{u.shortName}</div>
-                            <TierBadge lri={u.lri} retention12m={u.retention12m} />
-                        </div>
-
-                        {/* Signal 1: Pool size */}
-                        <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
-                                Talent Pool
-                            </div>
-                            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>
-                                {u.totalRelevantStudents.toLocaleString()}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>relevant students</div>
-                        </div>
-
-                        {/* Signal 2: Accenture hires */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Hires</span>
-                            <span style={{ fontWeight: 700, color: u.color }}>{u.graduatesToAccenture}</span>
-                        </div>
-
-                        {/* Signal 3: Local origin */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, paddingTop: 6 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Local origin</span>
-                            <span style={{ fontWeight: 600 }}>{u.localOriginPct}%</span>
-                        </div>
-
-                        {/* Signal 4: 12m retention */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, paddingTop: 6 }}>
-                            <span style={{ color: 'var(--text-muted)' }}>12m retention</span>
-                            <span style={{
-                                fontWeight: 600,
-                                color: u.retention12m >= 85 ? 'var(--green)' : u.retention12m >= 78 ? 'var(--amber)' : 'var(--red)',
-                            }}>{u.retention12m}%</span>
-                        </div>
-                    </div>
+            {/* ── University Profile: selector + header card + KPIs ── */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+                {UNIVERSITIES.map((u) => (
+                    <button
+                        key={u.id}
+                        className={`btn btn-sm ${selectedUniId === u.id ? 'btn-primary' : 'btn-secondary'}`}
+                        style={selectedUniId === u.id ? { background: UNI_COLORS[u.id] } : {}}
+                        onClick={() => setSelectedUniId(u.id)}
+                        id={`tab-${u.id}`}
+                    >
+                        {u.shortName}
+                    </button>
                 ))}
+                <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center', fontStyle: 'italic' }}>
+                    Select a university to view its profile
+                </span>
             </div>
 
-            {/* ── Comparison table ── */}
-            <div className="card mb-24">
-                <div className="card-header flex-between">
-                    <div>
-                        <div className="card-title">University Opportunity Comparison</div>
-                        <div className="card-subtitle">
-                            Pool size · conversion · quality · retention potential — ordered by retention signal
+            {/* Profile header */}
+            <div className="card mb-20" style={{ borderTop: `4px solid ${selColor}` }}>
+                <div className="card-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
+                        <div>
+                            <div style={{ fontSize: 20, fontWeight: 800 }}>{selUni.name}</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+                                {selUni.location} · UK Ranking #{selUni.rankingUK}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                                {UNI_PROFILES[selectedUniId]}
+                            </div>
                         </div>
+                        {[
+                            { label: 'Total Students', value: selLatestData.totalStudents.toLocaleString() },
+                            { label: 'Employability Score', value: `${selLatestData.employabilityScore}/100` },
+                            { label: 'Progression Rate', value: `${selLatestData.progressionRate}%` },
+                        ].map((stat) => (
+                            <div key={stat.label} style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: 28, fontWeight: 800, color: selColor }}>{stat.value}</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{stat.label}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
-                <div className="card-body" style={{ padding: 0 }}>
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>University</th>
-                                <th>
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        Relevant Students
-                                        <Tooltip text="Graduates in subject areas relevant to Accenture roles: Business & Management, Computing, Engineering & Technology, and Mathematical Sciences." />
-                                    </span>
-                                </th>
-                                <th>Grads → Accenture</th>
-                                <th>
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        Conversion
-                                        <Tooltip text="Conversion = Accenture hires ÷ relevant students. Measures how effectively we turn the available talent pool into actual hires." />
-                                    </span>
-                                </th>
-                                <th>Progression Rate</th>
-                                <th>Employability</th>
-                                <th>
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        Local Origin %
-                                        <Tooltip text="Share of hired graduates whose home region is the North East. Higher = stronger retention signal, less London leakage risk." />
-                                    </span>
-                                </th>
-                                <th>
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        12m Retention
-                                        <Tooltip text="Percentage of graduates from this university still active at Accenture Newcastle 12 months after joining." />
-                                    </span>
-                                </th>
-                                <th>
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        LRI
-                                        <Tooltip text="Local Retention Index (0–100): composite of home region, NE university origin, no transfer within 12m, and still active at 12m in Newcastle. Higher = stronger long-term local anchor." />
-                                    </span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {[...tableData]
-                                .sort((a, b) => b.lri - a.lri)
-                                .map((u) => (
-                                    <tr key={u.id}>
-                                        <td>
-                                            <div className="flex-center gap-8">
-                                                <span className="uni-dot" style={{ background: u.color }} />
-                                                <div>
-                                                    <span style={{ fontWeight: 600 }}>{u.shortName}</span>
-                                                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>UK #{u.rankingUK}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div>
-                                                <span style={{ fontWeight: 600 }}>{u.totalRelevantStudents.toLocaleString()}</span>
-                                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>in 4 relevant subjects</div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span style={{ fontWeight: 700, color: u.color }}>{u.graduatesToAccenture}</span>
-                                        </td>
-                                        <td>
-                                            <span className={`badge ${u.conversion >= 1 ? 'green' : u.conversion >= 0.5 ? 'amber' : 'red'}`}>
-                                                {u.conversion.toFixed(2)}%
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="flex-center gap-8">
-                                                <div className="progress-bar" style={{ width: 70 }}>
-                                                    <div className="progress-fill purple" style={{ width: `${u.progressionRate}%` }} />
-                                                </div>
-                                                <span style={{ fontSize: 12 }}>{u.progressionRate}%</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="flex-center gap-8">
-                                                <div className="progress-bar" style={{ width: 70 }}>
-                                                    <div
-                                                        className="progress-fill"
-                                                        style={{
-                                                            width: `${u.employabilityScore}%`,
-                                                            background: u.employabilityScore >= 80 ? 'var(--green)' : u.employabilityScore >= 70 ? 'var(--amber)' : 'var(--red)',
-                                                        }}
-                                                    />
-                                                </div>
-                                                <span style={{ fontSize: 12 }}>{u.employabilityScore}/100</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="flex-center gap-8">
-                                                <div className="progress-bar" style={{ width: 55 }}>
-                                                    <div
-                                                        className="progress-fill"
-                                                        style={{
-                                                            width: `${u.localOriginPct}%`,
-                                                            background: u.localOriginPct >= 60 ? 'var(--green)' : u.localOriginPct >= 40 ? 'var(--amber)' : 'var(--red)',
-                                                        }}
-                                                    />
-                                                </div>
-                                                <span style={{ fontSize: 12 }}>{u.localOriginPct}%</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span style={{
-                                                fontWeight: 700,
-                                                color: u.retention12m >= 85 ? 'var(--green)' : u.retention12m >= 78 ? 'var(--amber)' : 'var(--red)',
-                                            }}>
-                                                {u.retention12m}%
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <div className="progress-bar" style={{ width: 50 }}>
-                                                    <div
-                                                        className="progress-fill"
-                                                        style={{
-                                                            width: `${u.lri}%`,
-                                                            background: u.lri >= 80 ? 'var(--chart-1)' : u.lri >= 70 ? 'var(--amber)' : 'var(--red)',
-                                                        }}
-                                                    />
-                                                </div>
-                                                <span style={{ fontSize: 12, fontWeight: 700 }}>{u.lri}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                        </tbody>
-                    </table>
-                </div>
             </div>
 
-            {/* ── Charts row 1: Pool size + Retention potential ── */}
+            {/* KPI row */}
+            {selLatestRet && (
+                <div className="grid-4 mb-20">
+                    {[
+                        { label: 'Total Hires (Latest)', value: String(selLatestRet.totalHires), status: 'positive' as const },
+                        { label: '12m Retention', value: `${selLatestRet.retention12m}%`, status: selLatestRet.retention12m >= 82 ? 'positive' as const : 'warning' as const },
+                        { label: '24m Retention', value: `${selLatestRet.retention24m}%`, status: selLatestRet.retention24m >= 65 ? 'positive' as const : 'warning' as const },
+                        { label: 'Avg LRI Score', value: selLRI ? String(selLRI.avgLRI) : '—', status: (selLRI?.avgLRI ?? 0) >= 70 ? 'positive' as const : 'warning' as const },
+                    ].map((k) => (
+                        <div key={k.label} className={`kpi-card ${k.status}`} style={{ borderTopColor: selColor }}>
+                            <div className="kpi-label">{k.label}</div>
+                            <div className="kpi-value">{k.value}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Cross-university charts */}
             <div className="grid-2 mb-24">
                 <div className="card">
                     <div className="card-header">
                         <div>
                             <div className="card-title">Subject Volume by University</div>
-                            <div className="card-subtitle">
-                                Relevant student enrolments — size of the addressable talent pool, {year}
-                            </div>
+                            <div className="card-subtitle">Relevant student enrolments — size of addressable talent pool, {year}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 5 }}>
                             {['all', ...SUBJECTS].map((s) => (
-                                <button
-                                    key={s}
-                                    className={`btn btn-sm ${activeSubject === s ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => setActiveSubject(s)}
-                                    style={{ fontSize: 11 }}
-                                >
+                                <button key={s} className={`btn btn-sm ${activeSubject === s ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => setActiveSubject(s)} style={{ fontSize: 10 }}>
                                     {s === 'all' ? 'All' : s.split(' ')[0]}
                                 </button>
                             ))}
                         </div>
                     </div>
                     <div className="card-body">
-                        <MultiBarChart
-                            data={subjectChartData}
-                            xKey="subject"
-                            bars={tableData.map((u) => ({ key: u.shortName, name: u.shortName, color: u.color }))}
-                        />
+                        <MultiBarChart data={subjectChartData} xKey="subject"
+                            bars={tableData.map((u) => ({ key: u.shortName, name: u.shortName, color: u.color }))} />
                     </div>
                 </div>
 
-                <div className="card">
-                    <div className="card-header">
-                        <div>
-                            <div className="card-title">Retention Potential by University</div>
-                            <div className="card-subtitle">
-                                12m retention · local-origin share · LRI — which universities anchor talent in the North East
-                            </div>
-                        </div>
-                    </div>
-                    <div className="card-body">
-                        <MultiBarChart
-                            data={retentionPotentialData}
-                            xKey="name"
-                            bars={[
-                                { key: '12m Retention', name: '12m Retention %', color: 'var(--chart-2)' },
-                                { key: 'Local Origin %', name: 'Local Origin %', color: 'var(--green)' },
-                                { key: 'LRI', name: 'LRI Score', color: 'var(--chart-1)' },
-                            ]}
-                            unit="%"
-                        />
-                        <div style={{
-                            marginTop: 12,
-                            padding: '8px 12px',
-                            background: 'var(--surface-2)',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            color: 'var(--text-muted)',
-                            lineHeight: 1.6,
-                        }}>
-                            <strong style={{ color: 'var(--text)' }}>LRI</strong> = Local Retention Index (0–100):
-                            home region in NE (25pts) + NE university (25pts) + no transfer in 12m (25pts) + still active at 12m in Newcastle (25pts).
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Charts row 2: Quality + Hires ── */}
-            <div className="grid-2 mb-24">
                 <div className="card">
                     <div className="card-header">
                         <div>
@@ -409,56 +243,89 @@ export default function UniversityLandscape() {
                     </div>
                     <div className="card-body">
                         <MultiBarChart
-                            data={tableData.map((u) => ({
-                                name: u.shortName,
-                                'Progression Rate': u.progressionRate,
-                                'Employability Score': u.employabilityScore,
-                            }))}
+                            data={tableData.map((u) => ({ name: u.shortName, 'Progression Rate': u.progressionRate, 'Employability Score': u.employabilityScore }))}
                             xKey="name"
-                            bars={[
-                                { key: 'Progression Rate', name: 'Progression %', color: 'var(--chart-1)' },
-                                { key: 'Employability Score', name: 'Employability Score', color: 'var(--chart-2)' },
-                            ]}
-                            unit="%"
-                        />
+                            bars={[{ key: 'Progression Rate', name: 'Progression %', color: 'var(--chart-1)' }, { key: 'Employability Score', name: 'Employability Score', color: 'var(--chart-2)' }]}
+                            unit="%" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="card mb-8">
+                <div className="card-header">
+                    <div>
+                        <div className="card-title">Graduates Joining Accenture Newcastle</div>
+                        <div className="card-subtitle">Actual hires by university, {year}</div>
+                    </div>
+                </div>
+                <div className="card-body">
+                    <HorizontalBarChart data={accentureData} yKey="name"
+                        bars={[{ key: 'Hires', name: 'Joined Hires', color: 'var(--chart-1)' }]} height={180} />
+                </div>
+            </div>
+
+            {/* Charts row 1: Hires trend + Degree donut */}
+            <div className="grid-2 mb-20">
+                <div className="card">
+                    <div className="card-header">
+                        <div>
+                            <div className="card-title">Hires & 12m Retention Trend</div>
+                            <div className="card-subtitle">How hiring volume and retention have evolved over time</div>
+                        </div>
+                    </div>
+                    <div className="card-body">
+                        <MultiLineChart data={hireTrendData} xKey="year"
+                            lines={[
+                                { key: 'Hires', name: 'Joined Hires', color: selColor },
+                                { key: 'Retention 12m', name: '12m Retention %', color: 'var(--chart-3)', dashed: true },
+                            ]} />
                     </div>
                 </div>
 
                 <div className="card">
                     <div className="card-header">
                         <div>
-                            <div className="card-title">Graduates Joining Accenture Newcastle</div>
-                            <div className="card-subtitle">Actual hires by university, {year}</div>
+                            <div className="card-title">Degree Classifications (Offer Holders)</div>
+                            <div className="card-subtitle">Breakdown of degree results for students who received an Accenture offer</div>
                         </div>
                     </div>
                     <div className="card-body">
-                        <HorizontalBarChart
-                            data={accentureData}
-                            yKey="name"
-                            bars={[{ key: 'Hires', name: 'Joined Hires', color: 'var(--chart-1)' }]}
-                            height={220}
-                        />
+                        <DonutChart data={degreeDonutData} innerRadius={60} height={210}
+                            centerLabel="1st + 2:1" centerValue={`${firstAndTwoOne}%`} />
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
+                            {degreeDonutData.map((d) => (
+                                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                                    <span style={{ width: 10, height: 10, borderRadius: 2, background: d.color, display: 'inline-block' }} />
+                                    <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
+                                    <span style={{ fontWeight: 700, color: d.color }}>{d.value}%</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{
+                            marginTop: 10, padding: '7px 12px',
+                            background: 'rgba(161,0,255,0.06)', border: '1px solid rgba(161,0,255,0.15)',
+                            borderRadius: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center',
+                        }}>
+                            <strong style={{ color: firstAndTwoOne >= 80 ? 'var(--green)' : firstAndTwoOne >= 70 ? 'var(--amber)' : 'var(--red)' }}>
+                                {firstAndTwoOne}%
+                            </strong> of offer holders hold a 1st or 2:1 —{' '}
+                            {firstAndTwoOne >= 80 ? 'strong academic calibre' : firstAndTwoOne >= 70 ? 'solid pipeline quality' : 'below benchmark — review selection criteria'}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Insight callout ── */}
+            {/* Page insight */}
             <div style={{
-                padding: '16px 20px',
-                background: 'rgba(161,0,255,0.06)',
-                border: '1px solid rgba(161,0,255,0.2)',
-                borderRadius: 10,
-                display: 'flex',
-                gap: 12,
-                alignItems: 'flex-start',
+                marginTop: 24, padding: '14px 18px', background: 'rgba(161,0,255,0.06)',
+                border: '1px solid rgba(161,0,255,0.2)', borderRadius: 10,
+                display: 'flex', gap: 10, alignItems: 'flex-start',
             }}>
-                <span style={{ fontSize: 18, marginTop: 1 }}>💡</span>
+                <span style={{ fontSize: 16, marginTop: 1 }}>💡</span>
                 <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
-                    <strong>How to read this page:</strong> The table is sorted by LRI (highest first) — universities at the top are the strongest bets
-                    for long-term North East talent anchoring. A high <em>pool size</em> alone is not enough; combine it with{' '}
-                    <em>local-origin %</em> and <em>12m retention</em> to identify the best recruitment focus.
-                    Durham leads on quality and retention; Northumbria leads on volume and local origin share.
-                    Teesside and Sunderland offer underutilised local-origin talent with strong community ties.
+                    <strong>How to use this page:</strong> Select any university from the tabs above
+                    to load its full profile metrics. The charts below compare all universities side-by-side,
+                    while the trend and degree charts focus deeply on your selected institution.
                 </div>
             </div>
         </div>

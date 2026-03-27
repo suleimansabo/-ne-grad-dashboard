@@ -15,17 +15,15 @@ import LocalRetention from './pages/LocalRetention';
 import LeakageToLondon from './pages/LeakageToLondon';
 import CampaignEffectiveness from './pages/CampaignEffectiveness';
 import RiskInsights from './pages/RiskInsights';
-import UniversityScorecard from './pages/UniversityScorecard';
 
 const PAGE_TITLES: Record<PageId, { title: string; subtitle: string }> = {
   'executive': { title: 'Executive Summary', subtitle: 'North East Graduate Recruitment · Overall KPIs and trends' },
-  'university-landscape': { title: 'University Landscape', subtitle: 'NE university subject volumes, progression & employability' },
+  'university-landscape': { title: 'University Landscape', subtitle: 'Strategic comparison across universities · drill down into any university' },
   'attraction-funnel': { title: 'Attraction Funnel', subtitle: 'Campaign reach to joined hires — conversion at every stage' },
   'local-retention': { title: 'Local Retention & Stickiness', subtitle: 'Are NE hires staying in the region? Local Retention Index' },
   'leakage-london': { title: 'Leakage to London', subtitle: 'Internal transfer patterns and feeder-office risk' },
   'campaign-effectiveness': { title: 'Campaign Effectiveness', subtitle: 'Which activities produce the best retained hires?' },
   'risk-insights': { title: 'Risk & Insights', subtitle: 'Automated signals, alerts, and what-if scenarios' },
-  'university-scorecard': { title: 'University Scorecard', subtitle: 'Detailed drill-down for a single university' },
 };
 
 const PAGE_COMPONENTS: Record<PageId, React.FC> = {
@@ -36,7 +34,6 @@ const PAGE_COMPONENTS: Record<PageId, React.FC> = {
   'leakage-london': LeakageToLondon,
   'campaign-effectiveness': CampaignEffectiveness,
   'risk-insights': RiskInsights,
-  'university-scorecard': UniversityScorecard,
 };
 
 // Pages that should show the filter bar

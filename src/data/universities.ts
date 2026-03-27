@@ -10,6 +10,13 @@ export interface SubjectVolume {
     graduatesEmployedPct: number;
 }
 
+export interface DegreeClassifications {
+    firstClass: number;   // % of offer holders with 1st Class
+    twoOne: number;       // % with 2:1
+    twoTwo: number;       // % with 2:2
+    thirdOrPass: number;  // % with 3rd or Pass
+}
+
 export interface UniversityYear {
     year: number;
     totalStudents: number;
@@ -17,6 +24,7 @@ export interface UniversityYear {
     employabilityScore: number; // 0-100
     graduatesToAccenture: number;
     subjectVolumes: SubjectVolume[];
+    degreeClassifications: DegreeClassifications;
 }
 
 export interface University {
@@ -44,6 +52,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 82,
                 employabilityScore: 78,
                 graduatesToAccenture: 34,
+                degreeClassifications: { firstClass: 38, twoOne: 44, twoTwo: 14, thirdOrPass: 4 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3200, graduatesEmployedPct: 85 },
                     { subject: 'Computing', students: 2100, graduatesEmployedPct: 92 },
@@ -57,6 +66,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 83,
                 employabilityScore: 80,
                 graduatesToAccenture: 41,
+                degreeClassifications: { firstClass: 40, twoOne: 43, twoTwo: 13, thirdOrPass: 4 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3350, graduatesEmployedPct: 86 },
                     { subject: 'Computing', students: 2300, graduatesEmployedPct: 93 },
@@ -70,6 +80,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 84,
                 employabilityScore: 82,
                 graduatesToAccenture: 47,
+                degreeClassifications: { firstClass: 42, twoOne: 42, twoTwo: 12, thirdOrPass: 4 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3500, graduatesEmployedPct: 87 },
                     { subject: 'Computing', students: 2550, graduatesEmployedPct: 94 },
@@ -83,6 +94,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 85,
                 employabilityScore: 83,
                 graduatesToAccenture: 52,
+                degreeClassifications: { firstClass: 44, twoOne: 41, twoTwo: 11, thirdOrPass: 4 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3680, graduatesEmployedPct: 87 },
                     { subject: 'Computing', students: 2720, graduatesEmployedPct: 95 },
@@ -106,6 +118,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 74,
                 employabilityScore: 71,
                 graduatesToAccenture: 62,
+                degreeClassifications: { firstClass: 28, twoOne: 48, twoTwo: 19, thirdOrPass: 5 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 5400, graduatesEmployedPct: 78 },
                     { subject: 'Computing', students: 3800, graduatesEmployedPct: 84 },
@@ -119,6 +132,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 75,
                 employabilityScore: 72,
                 graduatesToAccenture: 74,
+                degreeClassifications: { firstClass: 30, twoOne: 47, twoTwo: 18, thirdOrPass: 5 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 5600, graduatesEmployedPct: 79 },
                     { subject: 'Computing', students: 4100, graduatesEmployedPct: 85 },
@@ -132,6 +146,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 76,
                 employabilityScore: 73,
                 graduatesToAccenture: 89,
+                degreeClassifications: { firstClass: 31, twoOne: 47, twoTwo: 17, thirdOrPass: 5 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 5800, graduatesEmployedPct: 80 },
                     { subject: 'Computing', students: 4400, graduatesEmployedPct: 86 },
@@ -145,6 +160,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 77,
                 employabilityScore: 74,
                 graduatesToAccenture: 98,
+                degreeClassifications: { firstClass: 32, twoOne: 47, twoTwo: 16, thirdOrPass: 5 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 6000, graduatesEmployedPct: 81 },
                     { subject: 'Computing', students: 4650, graduatesEmployedPct: 87 },
@@ -168,6 +184,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 90,
                 employabilityScore: 88,
                 graduatesToAccenture: 28,
+                degreeClassifications: { firstClass: 52, twoOne: 38, twoTwo: 8, thirdOrPass: 2 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2100, graduatesEmployedPct: 91 },
                     { subject: 'Computing', students: 1100, graduatesEmployedPct: 95 },
@@ -181,6 +198,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 91,
                 employabilityScore: 89,
                 graduatesToAccenture: 33,
+                degreeClassifications: { firstClass: 54, twoOne: 37, twoTwo: 7, thirdOrPass: 2 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2250, graduatesEmployedPct: 92 },
                     { subject: 'Computing', students: 1200, graduatesEmployedPct: 96 },
@@ -194,6 +212,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 91,
                 employabilityScore: 90,
                 graduatesToAccenture: 38,
+                degreeClassifications: { firstClass: 56, twoOne: 36, twoTwo: 6, thirdOrPass: 2 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2400, graduatesEmployedPct: 92 },
                     { subject: 'Computing', students: 1350, graduatesEmployedPct: 96 },
@@ -207,6 +226,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 92,
                 employabilityScore: 91,
                 graduatesToAccenture: 44,
+                degreeClassifications: { firstClass: 58, twoOne: 35, twoTwo: 5, thirdOrPass: 2 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2550, graduatesEmployedPct: 93 },
                     { subject: 'Computing', students: 1500, graduatesEmployedPct: 97 },
@@ -230,6 +250,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 68,
                 employabilityScore: 65,
                 graduatesToAccenture: 22,
+                degreeClassifications: { firstClass: 22, twoOne: 45, twoTwo: 26, thirdOrPass: 7 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2800, graduatesEmployedPct: 71 },
                     { subject: 'Computing', students: 3200, graduatesEmployedPct: 78 },
@@ -243,6 +264,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 69,
                 employabilityScore: 66,
                 graduatesToAccenture: 27,
+                degreeClassifications: { firstClass: 23, twoOne: 46, twoTwo: 24, thirdOrPass: 7 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2950, graduatesEmployedPct: 72 },
                     { subject: 'Computing', students: 3400, graduatesEmployedPct: 79 },
@@ -256,6 +278,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 70,
                 employabilityScore: 67,
                 graduatesToAccenture: 31,
+                degreeClassifications: { firstClass: 24, twoOne: 46, twoTwo: 23, thirdOrPass: 7 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3100, graduatesEmployedPct: 73 },
                     { subject: 'Computing', students: 3650, graduatesEmployedPct: 80 },
@@ -269,6 +292,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 71,
                 employabilityScore: 68,
                 graduatesToAccenture: 36,
+                degreeClassifications: { firstClass: 25, twoOne: 46, twoTwo: 22, thirdOrPass: 7 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 3250, graduatesEmployedPct: 74 },
                     { subject: 'Computing', students: 3900, graduatesEmployedPct: 81 },
@@ -292,6 +316,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 64,
                 employabilityScore: 61,
                 graduatesToAccenture: 12,
+                degreeClassifications: { firstClass: 18, twoOne: 43, twoTwo: 29, thirdOrPass: 10 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2500, graduatesEmployedPct: 68 },
                     { subject: 'Computing', students: 2100, graduatesEmployedPct: 74 },
@@ -305,6 +330,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 65,
                 employabilityScore: 62,
                 graduatesToAccenture: 15,
+                degreeClassifications: { firstClass: 19, twoOne: 44, twoTwo: 28, thirdOrPass: 9 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2600, graduatesEmployedPct: 69 },
                     { subject: 'Computing', students: 2250, graduatesEmployedPct: 75 },
@@ -318,6 +344,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 66,
                 employabilityScore: 63,
                 graduatesToAccenture: 19,
+                degreeClassifications: { firstClass: 20, twoOne: 44, twoTwo: 27, thirdOrPass: 9 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2700, graduatesEmployedPct: 70 },
                     { subject: 'Computing', students: 2400, graduatesEmployedPct: 76 },
@@ -331,6 +358,7 @@ export const UNIVERSITIES: University[] = [
                 progressionRate: 67,
                 employabilityScore: 64,
                 graduatesToAccenture: 23,
+                degreeClassifications: { firstClass: 21, twoOne: 44, twoTwo: 26, thirdOrPass: 9 },
                 subjectVolumes: [
                     { subject: 'Business & Management', students: 2820, graduatesEmployedPct: 71 },
                     { subject: 'Computing', students: 2550, graduatesEmployedPct: 77 },
