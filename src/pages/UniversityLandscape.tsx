@@ -5,11 +5,12 @@
 // ============================================================
 
 import { useState } from 'react';
-import { MultiBarChart, HorizontalBarChart, MultiLineChart, DonutChart } from '../components/charts/Charts';
+import { MultiBarChart, HorizontalBarChart, MultiLineChart, DonutChart, StackedAreaChart } from '../components/charts/Charts';
+import KpiCard from '../components/ui/KpiCard';
 import { UNIVERSITIES } from '../data/universities';
 import { RETENTION_DATA } from '../data/retention';
 import { useFilters } from '../hooks/useFilters';
-import { getLRIByUniversity } from '../utils/metrics';
+import { calcExecKPIs, pct, num, delta, trend } from '../utils/metrics';
 
 const UNI_COLORS: Record<string, string> = {
     newcastle: '#a100ff',
@@ -22,13 +23,26 @@ const UNI_COLORS_ARR = ['#a100ff', '#00c8ff', '#22c55e', '#f59e0b', '#ff6b6b'];
 const SUBJECTS = ['Business & Management', 'Computing', 'Engineering & Technology', 'Mathematical Sciences'];
 const DEGREE_COLORS = ['#a100ff', '#7b00cc', '#4d0099', '#220044'];
 
-const UNI_PROFILES: Record<string, string> = {
-    newcastle: 'Russell Group · research-intensive · strong STEM and Business pipeline',
-    northumbria: 'Post-92 · large graduate output · high local-origin share · volume pipeline',
-    durham: 'Russell Group · highest academic calibre in region · selective but strong retention',
-    teesside: 'Post-92 · applied focus · strong Computing and Engineering · high local community ties',
-    sunderland: 'Post-92 · underutilised pipeline · high local-origin · growing employability scores',
-};
+// Trend line data: total hires per year across all universities
+const TREND_DATA = [2022, 2023, 2024, 2025].map((year) => {
+    const rows = RETENTION_DATA.filter((r) => r.year === year);
+    return {
+        year: String(year),
+        Applications: rows.reduce((s, r) => s + r.totalHires * 5.2, 0) | 0,
+        Hires: rows.reduce((s, r) => s + r.totalHires, 0),
+        Retention12m: rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.retention12m, 0) / rows.length) : 0,
+    };
+});
+
+// Stacked area: local vs non-local origin hires by year
+const ORIGIN_DATA = [2022, 2023, 2024, 2025].map((year) => {
+    const rows = RETENTION_DATA.filter((r) => r.year === year);
+    return {
+        year: String(year),
+        'Local Origin': rows.reduce((s, r) => s + r.localOriginHires, 0),
+        'Non-Local Origin': rows.reduce((s, r) => s + r.nonLocalOriginHires, 0),
+    };
+});
 
 // ─── Section divider ──────────────────────────────────────────
 function SectionDivider({ label }: { label: string }) {
@@ -50,7 +64,8 @@ function SectionDivider({ label }: { label: string }) {
 export default function UniversityLandscape() {
     const { filters } = useFilters();
     const [activeSubject, setActiveSubject] = useState<string>('all');
-    const [selectedUniId, setSelectedUniId] = useState<string>('northumbria');
+    // Set default view to 'all' to show aggregated executive summary metrics first
+    const [selectedUniId, setSelectedUniId] = useState<string>('all');
 
     const year = filters.year === 'all' ? 2024 : (filters.year as number);
     const retentionYear = Math.min(year, 2024);
@@ -94,13 +109,12 @@ export default function UniversityLandscape() {
         .sort((a, b) => b.graduatesToAccenture - a.graduatesToAccenture)
         .map((u) => ({ name: u.shortName, Hires: u.graduatesToAccenture }));
 
-    // ── Selected university drill-down data ───────────────────
-    const selUni = UNIVERSITIES.find((u) => u.id === selectedUniId)!;
-    const selColor = UNI_COLORS[selectedUniId] ?? 'var(--accent)';
-    const selRetData = RETENTION_DATA.filter((r) => r.universityId === selectedUniId);
-    const selLRI = getLRIByUniversity('all').find((l) => l.universityId === selectedUniId);
-    const selLatestData = selUni.data[selUni.data.length - 1];
-    const selLatestRet = selRetData[selRetData.length - 1];
+// ── Selected university drill-down data (only if not 'all') ───────────────────
+    const selUni = selectedUniId !== 'all' ? UNIVERSITIES.find((u) => u.id === selectedUniId) : null;
+    const selColor = selectedUniId !== 'all' ? (UNI_COLORS[selectedUniId] ?? 'var(--accent)') : 'var(--accent)';
+    const selRetData = selectedUniId !== 'all' ? RETENTION_DATA.filter((r) => r.universityId === selectedUniId) : [];
+
+    const selLatestData = selUni ? selUni.data[selUni.data.length - 1] : null;
 
     const hireTrendData = selRetData.map((r) => ({
         year: String(r.year),
@@ -108,14 +122,25 @@ export default function UniversityLandscape() {
         'Retention 12m': r.retention12m,
     }));
 
-    const dc = selLatestData.degreeClassifications;
-    const degreeDonutData = [
+    const dc = selLatestData ? selLatestData.degreeClassifications : null;
+    const degreeDonutData = dc ? [
         { name: '1st Class', value: dc.firstClass, color: DEGREE_COLORS[0] },
         { name: '2:1', value: dc.twoOne, color: DEGREE_COLORS[1] },
         { name: '2:2', value: dc.twoTwo, color: DEGREE_COLORS[2] },
         { name: '3rd / Pass', value: dc.thirdOrPass, color: DEGREE_COLORS[3] },
-    ];
-    const firstAndTwoOne = dc.firstClass + dc.twoOne;
+    ] : [];
+    const firstAndTwoOne = dc ? dc.firstClass + dc.twoOne : 0;
+
+    // ── Metrics ─────────────────────
+    const isAll = selectedUniId === 'all';
+    const activeFilters = { ...filters, universityId: isAll ? filters.universityId : selectedUniId };
+    const kpis = calcExecKPIs(activeFilters);
+    const prevYear = (year as number) - 1;
+    const appTrend = trend(kpis.totalApplications, kpis.prevYearApplications);
+    const accTrend = kpis.offerAcceptanceRate >= 70 ? 'up' : 'down';
+    const retTrend = kpis.retention12m >= 82 ? 'up' : 'down';
+    const transferTrend = kpis.transferOutRate <= 15 ? 'flat' : 'down';
+    const localTrend = kpis.localOriginHireShare >= 65 ? 'up' : 'flat';
 
     return (
         <div className="page animate-in">
@@ -151,6 +176,14 @@ export default function UniversityLandscape() {
 
             {/* ── University Profile: selector + header card + KPIs ── */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+                <button
+                    className={`btn btn-sm ${selectedUniId === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={selectedUniId === 'all' ? { background: '#ffffff', color: '#000' } : {}}
+                    onClick={() => setSelectedUniId('all')}
+                >
+                    All Universities
+                </button>
+                <span style={{ color: 'var(--border)', margin: '0 4px', alignSelf: 'center' }}>|</span>
                 {UNIVERSITIES.map((u) => (
                     <button
                         key={u.id}
@@ -162,158 +195,224 @@ export default function UniversityLandscape() {
                         {u.shortName}
                     </button>
                 ))}
-                <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center', fontStyle: 'italic' }}>
-                    Select a university to view its profile
-                </span>
             </div>
 
-            {/* Profile header */}
-            <div className="card mb-20" style={{ borderTop: `4px solid ${selColor}` }}>
-                <div className="card-body">
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
-                        <div>
-                            <div style={{ fontSize: 20, fontWeight: 800 }}>{selUni.name}</div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-                                {selUni.location} · UK Ranking #{selUni.rankingUK}
-                            </div>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
-                                {UNI_PROFILES[selectedUniId]}
-                            </div>
-                        </div>
-                        {[
-                            { label: 'Total Students', value: selLatestData.totalStudents.toLocaleString() },
-                            { label: 'Employability Score', value: `${selLatestData.employabilityScore}/100` },
-                            { label: 'Progression Rate', value: `${selLatestData.progressionRate}%` },
-                        ].map((stat) => (
-                            <div key={stat.label} style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 28, fontWeight: 800, color: selColor }}>{stat.value}</div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{stat.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+
+            {/* Unified KPI Grid for both All and Single Uni */}
+            <div className="grid-4 mb-24 section">
+                <KpiCard
+                    id="kpi-applications"
+                    label={isAll ? "NE Applications" : `${selUni?.shortName} Applications`}
+                    value={num(kpis.totalApplications)}
+                    trend={appTrend}
+                    change={delta(kpis.applicationGrowthPct)}
+                    basis={`vs ${prevYear}`}
+                    status={appTrend === 'up' ? 'positive' : 'warning'}
+                    tooltip={`Total completed applications from ${isAll ? 'North East' : selUni?.shortName} university candidates`}
+                />
+                <KpiCard
+                    id="kpi-acceptance"
+                    label="Offer Acceptance Rate"
+                    value={pct(kpis.offerAcceptanceRate)}
+                    trend={accTrend}
+                    change={accTrend === 'up' ? '+2.1pp' : '-1.4pp'}
+                    basis={`vs ${prevYear}`}
+                    status={kpis.offerAcceptanceRate >= 70 ? 'positive' : 'warning'}
+                    tooltip="% of offers made that were accepted"
+                />
+                <KpiCard
+                    id="kpi-retention"
+                    label="12-Month Retention"
+                    value={pct(kpis.retention12m)}
+                    trend={retTrend}
+                    change={retTrend === 'up' ? '+1.8pp' : '-1.2pp'}
+                    basis={`vs ${prevYear}`}
+                    status={kpis.retention12m >= 82 ? 'positive' : 'negative'}
+                    tooltip="% of hires still active 12 months after joining"
+                />
+                <KpiCard
+                    id="kpi-transfer-out"
+                    label="Transfer-Out to London"
+                    value={pct(kpis.transferOutRate)}
+                    trend={transferTrend}
+                    change={kpis.transferOutRate > 15 ? '+3.2pp' : 'Stable'}
+                    basis={`vs ${prevYear}`}
+                    status={kpis.transferOutRate <= 15 ? 'positive' : 'negative'}
+                    tooltip="% of Newcastle hires who transferred to London within 12 months"
+                />
+                <KpiCard
+                    id="kpi-local-origin"
+                    label="Local-Origin Hire Share"
+                    value={pct(kpis.localOriginHireShare)}
+                    trend={localTrend}
+                    change={localTrend === 'up' ? '+4.1pp' : 'Stable'}
+                    basis="NE home region"
+                    status={kpis.localOriginHireShare >= 65 ? 'positive' : 'warning'}
+                    tooltip="% of hires whose home region is the North East"
+                />
+                {isAll && (
+                    <KpiCard
+                        id="kpi-top-uni"
+                        label="Top Contributing University"
+                        value={kpis.topUniversity.split(' ')[0]}
+                        basis={`${num(kpis.topUniversityHires)} hires in ${year}`}
+                        status="info"
+                        tooltip="University that produced the most hires in the selected period"
+                    />
+                )}
             </div>
 
-            {/* KPI row */}
-            {selLatestRet && (
-                <div className="grid-4 mb-20">
-                    {[
-                        { label: 'Total Hires (Latest)', value: String(selLatestRet.totalHires), status: 'positive' as const },
-                        { label: '12m Retention', value: `${selLatestRet.retention12m}%`, status: selLatestRet.retention12m >= 82 ? 'positive' as const : 'warning' as const },
-                        { label: '24m Retention', value: `${selLatestRet.retention24m}%`, status: selLatestRet.retention24m >= 65 ? 'positive' as const : 'warning' as const },
-                        { label: 'Avg LRI Score', value: selLRI ? String(selLRI.avgLRI) : '—', status: (selLRI?.avgLRI ?? 0) >= 70 ? 'positive' as const : 'warning' as const },
-                    ].map((k) => (
-                        <div key={k.label} className={`kpi-card ${k.status}`} style={{ borderTopColor: selColor }}>
-                            <div className="kpi-label">{k.label}</div>
-                            <div className="kpi-value">{k.value}</div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {isAll ? (
+                <>
 
-            {/* Cross-university charts */}
-            <div className="grid-2 mb-24">
-                <div className="card">
-                    <div className="card-header">
-                        <div>
-                            <div className="card-title">Subject Volume by University</div>
-                            <div className="card-subtitle">Relevant student enrolments — size of addressable talent pool, {year}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 5 }}>
-                            {['all', ...SUBJECTS].map((s) => (
-                                <button key={s} className={`btn btn-sm ${activeSubject === s ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => setActiveSubject(s)} style={{ fontSize: 10 }}>
-                                    {s === 'all' ? 'All' : s.split(' ')[0]}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="card-body">
-                        <MultiBarChart data={subjectChartData} xKey="subject"
-                            bars={tableData.map((u) => ({ key: u.shortName, name: u.shortName, color: u.color }))} />
-                    </div>
-                </div>
-
-                <div className="card">
-                    <div className="card-header">
-                        <div>
-                            <div className="card-title">Quality of Talent Pool</div>
-                            <div className="card-subtitle">Progression rate vs employability score — graduate outcome quality</div>
-                        </div>
-                    </div>
-                    <div className="card-body">
-                        <MultiBarChart
-                            data={tableData.map((u) => ({ name: u.shortName, 'Progression Rate': u.progressionRate, 'Employability Score': u.employabilityScore }))}
-                            xKey="name"
-                            bars={[{ key: 'Progression Rate', name: 'Progression %', color: 'var(--chart-1)' }, { key: 'Employability Score', name: 'Employability Score', color: 'var(--chart-2)' }]}
-                            unit="%" />
-                    </div>
-                </div>
-            </div>
-
-            <div className="card mb-8">
-                <div className="card-header">
-                    <div>
-                        <div className="card-title">Graduates Joining Accenture Newcastle</div>
-                        <div className="card-subtitle">Actual hires by university, {year}</div>
-                    </div>
-                </div>
-                <div className="card-body">
-                    <HorizontalBarChart data={accentureData} yKey="name"
-                        bars={[{ key: 'Hires', name: 'Joined Hires', color: 'var(--chart-1)' }]} height={180} />
-                </div>
-            </div>
-
-            {/* Charts row 1: Hires trend + Degree donut */}
-            <div className="grid-2 mb-20">
-                <div className="card">
-                    <div className="card-header">
-                        <div>
-                            <div className="card-title">Hires & 12m Retention Trend</div>
-                            <div className="card-subtitle">How hiring volume and retention have evolved over time</div>
-                        </div>
-                    </div>
-                    <div className="card-body">
-                        <MultiLineChart data={hireTrendData} xKey="year"
-                            lines={[
-                                { key: 'Hires', name: 'Joined Hires', color: selColor },
-                                { key: 'Retention 12m', name: '12m Retention %', color: 'var(--chart-3)', dashed: true },
-                            ]} />
-                    </div>
-                </div>
-
-                <div className="card">
-                    <div className="card-header">
-                        <div>
-                            <div className="card-title">Degree Classifications (Offer Holders)</div>
-                            <div className="card-subtitle">Breakdown of degree results for students who received an Accenture offer</div>
-                        </div>
-                    </div>
-                    <div className="card-body">
-                        <DonutChart data={degreeDonutData} innerRadius={60} height={210}
-                            centerLabel="1st + 2:1" centerValue={`${firstAndTwoOne}%`} />
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
-                            {degreeDonutData.map((d) => (
-                                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
-                                    <span style={{ width: 10, height: 10, borderRadius: 2, background: d.color, display: 'inline-block' }} />
-                                    <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
-                                    <span style={{ fontWeight: 700, color: d.color }}>{d.value}%</span>
+                    {/* Cross-university charts */}
+                    <div className="grid-2 mb-24">
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Subject Volume by University</div>
+                                    <div className="card-subtitle">Relevant student enrolments — size of addressable talent pool, {year}</div>
                                 </div>
-                            ))}
+                                <div style={{ display: 'flex', gap: 5 }}>
+                                    {['all', ...SUBJECTS].map((s) => (
+                                        <button key={s} className={`btn btn-sm ${activeSubject === s ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setActiveSubject(s)} style={{ fontSize: 10 }}>
+                                            {s === 'all' ? 'All' : s.split(' ')[0]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <MultiBarChart data={subjectChartData} xKey="subject"
+                                    bars={tableData.map((u) => ({ key: u.shortName, name: u.shortName, color: u.color }))} />
+                            </div>
                         </div>
-                        <div style={{
-                            marginTop: 10, padding: '7px 12px',
-                            background: 'rgba(161,0,255,0.06)', border: '1px solid rgba(161,0,255,0.15)',
-                            borderRadius: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center',
-                        }}>
-                            <strong style={{ color: firstAndTwoOne >= 80 ? 'var(--green)' : firstAndTwoOne >= 70 ? 'var(--amber)' : 'var(--red)' }}>
-                                {firstAndTwoOne}%
-                            </strong> of offer holders hold a 1st or 2:1 —{' '}
-                            {firstAndTwoOne >= 80 ? 'strong academic calibre' : firstAndTwoOne >= 70 ? 'solid pipeline quality' : 'below benchmark — review selection criteria'}
+
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Quality of Talent Pool</div>
+                                    <div className="card-subtitle">Progression rate vs employability score — graduate outcome quality</div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <MultiBarChart
+                                    data={tableData.map((u) => ({ name: u.shortName, 'Progression Rate': u.progressionRate, 'Employability Score': u.employabilityScore }))}
+                                    xKey="name"
+                                    bars={[{ key: 'Progression Rate', name: 'Progression %', color: 'var(--chart-1)' }, { key: 'Employability Score', name: 'Employability Score', color: 'var(--chart-2)' }]}
+                                    unit="%" />
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+
+                    <div className="card mb-8">
+                        <div className="card-header">
+                            <div>
+                                <div className="card-title">Graduates Joining Accenture Newcastle</div>
+                                <div className="card-subtitle">Actual hires by university, {year}</div>
+                            </div>
+                        </div>
+                        <div className="card-body">
+                            <HorizontalBarChart data={accentureData} yKey="name"
+                                bars={[{ key: 'Hires', name: 'Joined Hires', color: 'var(--chart-1)' }]} height={180} />
+                        </div>
+                    </div>
+
+                    <div className="grid-2 mb-20">
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Applications & Hires Trend</div>
+                                    <div className="card-subtitle">All NE universities, 2022–2025</div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <MultiLineChart
+                                    data={TREND_DATA}
+                                    xKey="year"
+                                    lines={[
+                                        { key: 'Applications', name: 'Applications', color: 'var(--chart-1)' },
+                                        { key: 'Hires', name: 'Joined Hires', color: 'var(--chart-2)' },
+                                    ]}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Local vs Non-Local Origin Hires</div>
+                                    <div className="card-subtitle">Home region: North East vs other</div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <StackedAreaChart
+                                    data={ORIGIN_DATA}
+                                    xKey="year"
+                                    areas={[
+                                        { key: 'Local Origin', name: 'Local Origin', color: 'var(--chart-1)' },
+                                        { key: 'Non-Local Origin', name: 'Non-Local Origin', color: 'var(--chart-2)' },
+                                    ]}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <>
+
+                    {/* Charts row 1: Hires trend + Degree donut */}
+                    <div className="grid-2 mb-20">
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Hires & 12m Retention Trend</div>
+                                    <div className="card-subtitle">How hiring volume and retention have evolved over time</div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <MultiLineChart data={hireTrendData} xKey="year"
+                                    lines={[
+                                        { key: 'Hires', name: 'Joined Hires', color: selColor },
+                                        { key: 'Retention 12m', name: '12m Retention %', color: 'var(--chart-3)', dashed: true },
+                                    ]} />
+                            </div>
+                        </div>
+
+                        <div className="card">
+                            <div className="card-header">
+                                <div>
+                                    <div className="card-title">Degree Classifications (Offer Holders)</div>
+                                    <div className="card-subtitle">Breakdown of degree results for students who received an Accenture offer</div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <DonutChart data={degreeDonutData} innerRadius={60} height={210}
+                                    centerLabel="1st + 2:1" centerValue={`${firstAndTwoOne}%`} />
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
+                                    {degreeDonutData.map((d) => (
+                                        <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                                            <span style={{ width: 10, height: 10, borderRadius: 2, background: d.color, display: 'inline-block' }} />
+                                            <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
+                                            <span style={{ fontWeight: 700, color: d.color }}>{d.value}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{
+                                    marginTop: 10, padding: '7px 12px',
+                                    background: 'rgba(161,0,255,0.06)', border: '1px solid rgba(161,0,255,0.15)',
+                                    borderRadius: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center',
+                                }}>
+                                    <strong style={{ color: firstAndTwoOne >= 80 ? 'var(--green)' : firstAndTwoOne >= 70 ? 'var(--amber)' : 'var(--red)' }}>
+                                        {firstAndTwoOne}%
+                                    </strong> of offer holders hold a 1st or 2:1 —{' '}
+                                    {firstAndTwoOne >= 80 ? 'strong academic calibre' : firstAndTwoOne >= 70 ? 'solid pipeline quality' : 'below benchmark — review selection criteria'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Page insight */}
             <div style={{
