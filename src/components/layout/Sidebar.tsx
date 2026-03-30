@@ -2,16 +2,13 @@
 // COMPONENT: Sidebar Navigation
 // ============================================================
 
-import { LayoutDashboard, Building2, TrendingDown, Users, ArrowRightLeft, Megaphone, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Building2, Users, Megaphone, ChevronRight } from 'lucide-react';
 
 export type PageId =
-    | 'executive'
     | 'university-landscape'
-    | 'attraction-funnel'
     | 'local-retention'
-    | 'leakage-london'
     | 'campaign-effectiveness'
-    | 'risk-insights';
+    | 'campaign-calculator';
 
 interface NavItem {
     id: PageId;
@@ -21,16 +18,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-    { id: 'executive', label: 'Executive Summary', icon: <LayoutDashboard size={15} />, section: 'Overview' },
     { id: 'university-landscape', label: 'University Landscape', icon: <Building2 size={15} />, section: 'Analytics' },
-    { id: 'attraction-funnel', label: 'Attraction Funnel', icon: <TrendingDown size={15} />, section: 'Analytics' },
     { id: 'local-retention', label: 'Local Retention', icon: <Users size={15} />, section: 'Analytics' },
-    { id: 'leakage-london', label: 'Leakage to London', icon: <ArrowRightLeft size={15} />, section: 'Analytics' },
-    { id: 'campaign-effectiveness', label: 'Campaign Effectiveness', icon: <Megaphone size={15} />, section: 'Performance' },
-    { id: 'risk-insights', label: 'Risk & Insights', icon: <AlertTriangle size={15} />, section: 'Performance' },
+    { id: 'campaign-effectiveness', label: 'Campaign Effectiveness', icon: <Megaphone size={15} />, section: 'Campaigns' },
+    { id: 'campaign-calculator', label: 'Campaign Calculator', icon: <Megaphone size={15} />, section: 'Campaigns' },
 ];
 
-const SECTIONS = ['Overview', 'Analytics', 'Performance'];
+const SECTIONS = ['Overview', 'Analytics', 'Campaigns'];
 
 interface SidebarProps {
     activePage: PageId;
